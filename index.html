@@ -508,6 +508,15 @@ html, body {
 .hatch-eye-shine { fill: var(--cream); }
 .hatch-eye-shine-sm { fill: var(--cream); opacity: 0.85; }
 .hatch-smile { fill: none; stroke: var(--navy-deep); stroke-width: 1.6; stroke-linecap: round; }
+.hatch-bow {
+  display: none;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
+}
+.hatch-bow.show-bow {
+  display: block;
+}
+.hatch-bow-loop { fill: var(--blue); }
+.hatch-bow-knot { fill: var(--navy-deep); opacity: 0.85; }
 .hatchling.peek {
   /* Head's own center (in the SVG) lines up exactly with the hole's centroid on the egg here — calculated, not eyeballed */
   bottom: 27px;
@@ -761,6 +770,11 @@ html, body {
           <circle class="hatch-eye-shine-sm" cx="62.5" cy="35" r="1" />
           <circle class="hatch-eye-shine-sm" cx="82.5" cy="35" r="1" />
           <path class="hatch-smile" d="M64,45 Q70,49 76,45" />
+          <g class="hatch-bow" id="hatchBow">
+            <path class="hatch-bow-loop" d="M69,15 L47,3 L45,25 Z" />
+            <path class="hatch-bow-loop" d="M71,15 L93,3 L95,25 Z" />
+            <rect class="hatch-bow-knot" x="63" y="9" width="14" height="13" rx="4" />
+          </g>
         </svg>
       </div>
     </div>
@@ -844,7 +858,7 @@ try {
    no code changes or redeploy needed to flip it on the day. */
 const REVEAL_OPTIONS = {
   boy: { color: '#4DB6FF', headline: "IT'S A BOY!" },
-  girl: { color: '#FF8C7A', headline: "IT'S A GIRL!" }
+  girl: { color: '#FF5D8F', headline: "IT'S A GIRL!" }
 };
 const REVEAL = {
   gender: "boy",
@@ -1180,6 +1194,7 @@ function triggerReveal() {
   const headline = document.getElementById('revealHeadline');
   const subhead = document.getElementById('revealSubhead');
   const btn = document.getElementById('scrollDownBtn');
+  const bow = document.getElementById('hatchBow');
 
   headline.textContent = REVEAL.headline;
   headline.style.color = REVEAL.color;
@@ -1188,6 +1203,7 @@ function triggerReveal() {
   btn.hidden = false;
   document.documentElement.style.setProperty('--blue', REVEAL.color);
   document.title = REVEAL.headline + ' 🐢';
+  bow.classList.toggle('show-bow', REVEAL.gender === 'girl');
 
   spawnPulseRings();
   playCheer();
