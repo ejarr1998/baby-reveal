@@ -894,7 +894,7 @@ html, body {
 <section class="scene scene-names" id="scene-names" hidden>
   <div class="section-header">
     <span class="ticket-eyebrow">WASHED ASHORE</span>
-    <p class="announce">Ethan &amp; Rachel are having a boy!</p>
+    <p class="announce" id="parentsAnnounce">Ethan &amp; Rachel are having a boy!</p>
     <h2 class="section-title">Help us name them</h2>
     <p class="subhead">Drop your favorite name below. Best ones get the most shells 🐚</p>
   </div>
@@ -1404,6 +1404,7 @@ function triggerReveal() {
   const subhead = document.getElementById('revealSubhead');
   const btn = document.getElementById('scrollDownBtn');
   const bow = document.getElementById('hatchBow');
+  const parentsAnnounce = document.getElementById('parentsAnnounce');
 
   headline.textContent = REVEAL.headline;
   headline.style.color = REVEAL.color;
@@ -1413,6 +1414,7 @@ function triggerReveal() {
   document.documentElement.style.setProperty('--blue', REVEAL.color);
   document.title = REVEAL.headline + ' 🐢';
   bow.classList.toggle('show-bow', REVEAL.gender === 'girl');
+  parentsAnnounce.textContent = `Ethan & Rachel are having a ${REVEAL.gender}!`;
 
   spawnPulseRings();
   playCheer();
