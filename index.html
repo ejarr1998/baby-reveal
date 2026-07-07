@@ -306,6 +306,85 @@ html, body {
   margin: 0 0 18px;
 }
 
+#adminTrigger {
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+
+.admin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11,42,53,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 70;
+  padding: 20px;
+}
+.admin-overlay[hidden] {
+  display: none !important;
+}
+.admin-card {
+  background: var(--cream);
+  color: var(--navy-deep);
+  padding: 28px 26px;
+  border-radius: 20px;
+  text-align: center;
+  max-width: 300px;
+  width: 100%;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+}
+.admin-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 14px;
+}
+.admin-sub {
+  font-size: 0.9rem;
+  margin: 0 0 16px;
+  opacity: 0.8;
+}
+#pinInput {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(11,42,53,0.25);
+  background: rgba(11,42,53,0.05);
+  color: var(--navy-deep);
+  margin-bottom: 10px;
+}
+.admin-error {
+  color: #C1443A;
+  font-size: 0.85rem;
+  margin: 0 0 10px;
+}
+.admin-status {
+  font-size: 0.85rem;
+  min-height: 1.2em;
+  margin: 8px 0 4px;
+  color: #2E7D5B;
+  font-weight: 600;
+}
+.admin-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.admin-actions .btn {
+  flex: 1;
+  min-width: 110px;
+}
+
 .ripple {
   position: absolute;
   border: 2px solid rgba(255,255,255,0.8);
@@ -705,7 +784,7 @@ html, body {
 <!-- ============ SCENE 1: TURTLE RACE ============ -->
 <section class="scene scene-game" id="scene-game">
   <div class="marquee">
-    <span class="ticket-eyebrow">SEA TURTLE RESCUE</span>
+    <span class="ticket-eyebrow" id="adminTrigger">SEA TURTLE RESCUE</span>
     <h1 class="headline">Help them reach<br>the sea!</h1>
     <p class="subhead">Tap anywhere to give them a little nudge — watch out for danger! 🐢</p>
   </div>
@@ -719,6 +798,32 @@ html, body {
     <div class="lose-card">
       <p class="lose-text" id="loseText">Oh no!</p>
       <button class="btn btn-pink" id="retryBtn">Try again</button>
+    </div>
+  </div>
+
+  <!-- Hidden admin access: long-press the eyebrow above for 7s -->
+  <div class="admin-overlay" id="pinOverlay" hidden>
+    <div class="admin-card">
+      <p class="admin-title">Enter code</p>
+      <input type="tel" inputmode="numeric" autocomplete="off" maxlength="4" id="pinInput" placeholder="••••">
+      <p class="admin-error" id="pinError" hidden>Incorrect code, try again.</p>
+      <div class="admin-actions">
+        <button class="btn btn-primary" id="pinSubmitBtn">Unlock</button>
+        <button class="btn btn-gold" id="pinCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-overlay" id="adminOverlay" hidden>
+    <div class="admin-card">
+      <p class="admin-title">Reveal Control</p>
+      <p class="admin-sub">Currently set to: <strong id="adminCurrentGender">—</strong></p>
+      <div class="admin-actions">
+        <button class="btn btn-primary" id="setBoyBtn">Set to Boy</button>
+        <button class="btn btn-pink" id="setGirlBtn">Set to Girl</button>
+      </div>
+      <p class="admin-status" id="adminStatus"></p>
+      <button class="btn btn-gold" id="adminCloseBtn">Close</button>
     </div>
   </div>
 </section>
@@ -883,6 +988,110 @@ if (db) {
     }
   }, err => console.warn('gender config sync error:', err));
 }
+
+/* ====================== HIDDEN ADMIN PANEL ====================== */
+/* Long-press "SEA TURTLE RESCUE" for 7 seconds -> PIN prompt (1998) ->
+   simple boy/girl toggle that writes straight to Firestore. */
+const ADMIN_PIN = '1998';
+const ADMIN_HOLD_MS = 7000;
+
+const adminTrigger = document.getElementById('adminTrigger');
+const pinOverlay = document.getElementById('pinOverlay');
+const pinInput = document.getElementById('pinInput');
+const pinError = document.getElementById('pinError');
+const pinSubmitBtn = document.getElementById('pinSubmitBtn');
+const pinCancelBtn = document.getElementById('pinCancelBtn');
+
+const adminOverlay = document.getElementById('adminOverlay');
+const adminCurrentGender = document.getElementById('adminCurrentGender');
+const adminStatus = document.getElementById('adminStatus');
+const setBoyBtn = document.getElementById('setBoyBtn');
+const setGirlBtn = document.getElementById('setGirlBtn');
+const adminCloseBtn = document.getElementById('adminCloseBtn');
+
+let holdTimer = null;
+
+function startHold() {
+  if (holdTimer) return;
+  holdTimer = setTimeout(() => {
+    holdTimer = null;
+    openPinPrompt();
+  }, ADMIN_HOLD_MS);
+}
+function cancelHold() {
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+}
+adminTrigger.addEventListener('pointerdown', startHold);
+adminTrigger.addEventListener('pointerup', cancelHold);
+adminTrigger.addEventListener('pointerleave', cancelHold);
+adminTrigger.addEventListener('pointercancel', cancelHold);
+adminTrigger.addEventListener('contextmenu', (e) => e.preventDefault());
+
+function openPinPrompt() {
+  pinInput.value = '';
+  pinError.hidden = true;
+  pinOverlay.hidden = false;
+  pinInput.focus();
+}
+
+function closePinPrompt() {
+  pinOverlay.hidden = true;
+}
+
+pinCancelBtn.addEventListener('click', closePinPrompt);
+
+function trySubmitPin() {
+  if (pinInput.value === ADMIN_PIN) {
+    closePinPrompt();
+    openAdminPanel();
+  } else {
+    pinError.hidden = false;
+    pinInput.value = '';
+    pinInput.focus();
+    if (navigator.vibrate) navigator.vibrate([30, 20, 30]);
+  }
+}
+pinSubmitBtn.addEventListener('click', trySubmitPin);
+pinInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') trySubmitPin();
+});
+
+function openAdminPanel() {
+  adminStatus.textContent = '';
+  adminCurrentGender.textContent = REVEAL.gender;
+  adminOverlay.hidden = false;
+
+  if (db) {
+    db.collection('config').doc('reveal').get().then(doc => {
+      if (doc.exists && doc.data().gender) {
+        adminCurrentGender.textContent = doc.data().gender;
+      }
+    }).catch(() => {});
+  }
+}
+
+adminCloseBtn.addEventListener('click', () => { adminOverlay.hidden = true; });
+
+function setGenderInFirestore(gender) {
+  if (!db) {
+    adminStatus.style.color = '#C1443A';
+    adminStatus.textContent = 'Firebase isn\'t connected — can\'t save.';
+    return;
+  }
+  adminStatus.style.color = '';
+  adminStatus.textContent = 'Saving...';
+  db.collection('config').doc('reveal').set({ gender }, { merge: true })
+    .then(() => {
+      adminCurrentGender.textContent = gender;
+      adminStatus.textContent = 'Saved! Set to ' + gender + '.';
+    })
+    .catch(err => {
+      adminStatus.style.color = '#C1443A';
+      adminStatus.textContent = 'Failed to save: ' + err.message;
+    });
+}
+setBoyBtn.addEventListener('click', () => setGenderInFirestore('boy'));
+setGirlBtn.addEventListener('click', () => setGenderInFirestore('girl'));
 
 /* ====================== STRING LIGHTS ====================== */
 const bulbRow = document.getElementById('bulbRow');
