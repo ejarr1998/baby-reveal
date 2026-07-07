@@ -454,6 +454,7 @@ html, body {
   opacity: 0.9;
 }
 .egg.cracking .egg-crack-line,
+.egg.cracked .egg-crack-line,
 .egg.settle .egg-crack-line {
   stroke-dashoffset: 0;
   transition: stroke-dashoffset 0.7s ease;
@@ -471,6 +472,7 @@ html, body {
   transition: transform 0.4s cubic-bezier(.34,1.56,.64,1), opacity 0.3s ease;
 }
 .egg.cracking .egg-hole,
+.egg.cracked .egg-hole,
 .egg.settle .egg-hole {
   opacity: 1;
   transform: scale(1);
@@ -836,11 +838,37 @@ try {
 }
 
 /* ====================== CONFIG ====================== */
+/* Default/fallback — used if Firebase isn't configured, or before the live
+   value has loaded. Once Firestore is set up, the actual gender is controlled
+   by config/reveal -> gender ("boy" or "girl") in the Firestore console —
+   no code changes or redeploy needed to flip it on the day. */
+const REVEAL_OPTIONS = {
+  boy: { color: '#4DB6FF', headline: "IT'S A BOY!" },
+  girl: { color: '#FF8C7A', headline: "IT'S A GIRL!" }
+};
 const REVEAL = {
   gender: "boy",
-  color: "#4DB6FF",
-  headline: "IT'S A BOY!"
+  color: REVEAL_OPTIONS.boy.color,
+  headline: REVEAL_OPTIONS.boy.headline
 };
+
+function applyGenderConfig(gender) {
+  const g = (gender === 'girl') ? 'girl' : 'boy'; // anything unexpected just falls back to boy
+  REVEAL.gender = g;
+  REVEAL.color = REVEAL_OPTIONS[g].color;
+  REVEAL.headline = REVEAL_OPTIONS[g].headline;
+}
+
+if (db) {
+  // Live-synced: create a doc at config/reveal with a field "gender" set to
+  // "boy" or "girl" in the Firestore console, and this updates automatically —
+  // even on a page a guest already has open.
+  db.collection('config').doc('reveal').onSnapshot(doc => {
+    if (doc.exists && doc.data().gender) {
+      applyGenderConfig(doc.data().gender);
+    }
+  }, err => console.warn('gender config sync error:', err));
+}
 
 /* ====================== STRING LIGHTS ====================== */
 const bulbRow = document.getElementById('bulbRow');
@@ -1095,31 +1123,43 @@ function startEggReveal() {
   const hatchling = document.getElementById('hatchling');
   const subhead = document.getElementById('revealSubhead');
 
+  function shakeBurst(startAt, durationMs, tone) {
+    setTimeout(() => {
+      egg.classList.add('cracking');
+      playTone(tone, 0.2, 'triangle');
+      if (navigator.vibrate) navigator.vibrate(15);
+    }, startAt);
+    setTimeout(() => {
+      egg.classList.remove('cracking');
+    }, startAt + durationMs);
+  }
+
   // Let the egg just sit and wobble for a moment first — build the suspense
   setTimeout(() => {
     subhead.textContent = 'Wait for it...';
-  }, 1200);
+  }, 1400);
 
-  // The top starts to open, egg shakes a little more
-  setTimeout(() => {
-    egg.classList.add('cracking');
-    playTone(260, 0.2, 'triangle');
-    if (navigator.vibrate) navigator.vibrate(15);
-  }, 2200);
+  // Three shake-then-pause cycles, each a little more urgent than the last —
+  // don't rush this, the pauses are doing as much work as the shakes.
+  shakeBurst(2600, 700, 240);   // shake 1 — brief, tentative (this is also when the crack first appears, and stays)
+  shakeBurst(4600, 700, 260);   // shake 2 — same length, after a real pause
+  shakeBurst(6600, 850, 300);   // shake 3 — longest and highest-pitched, the big one
 
-  // Their head pokes out over the rim — egg is still whole
+  setTimeout(() => { egg.classList.add('cracked'); }, 2600);
+
+  // Their head pokes out over the rim right on the heels of that last big shake
   setTimeout(() => {
     subhead.textContent = 'They\'re peeking out!';
     hatchling.hidden = false;
     hatchling.classList.add('peek');
     playTone(420, 0.12, 'triangle');
     if (navigator.vibrate) navigator.vibrate(20);
-  }, 3400);
+  }, 7500);
 
   // A beat of them just sitting there peeking, before committing to climbing out
   setTimeout(() => {
     subhead.textContent = 'Almost there...';
-  }, 4400);
+  }, 8700);
 
   // They climb the rest of the way out
   setTimeout(() => {
@@ -1131,9 +1171,9 @@ function startEggReveal() {
     spawnSandPuffs(rect.left + rect.width / 2, rect.bottom - 4);
     playTone(320, 0.18, 'triangle');
     if (navigator.vibrate) navigator.vibrate(20);
-  }, 5000);
+  }, 9700);
 
-  setTimeout(triggerReveal, 5550);
+  setTimeout(triggerReveal, 10250);
 }
 
 function triggerReveal() {
