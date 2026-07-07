@@ -713,8 +713,11 @@ html, body {
   position: relative;
   box-shadow: 0 6px 14px rgba(0,0,0,0.3);
   transform: rotate(var(--tilt, -2deg));
+  transform-origin: 50% -6px;
   text-align: left;
-  animation: pin-drop 0.4s ease both;
+  animation:
+    pin-drop 0.4s ease both,
+    pin-sway var(--sway-dur, 3.4s) ease-in-out var(--sway-delay, 0.4s) infinite;
 }
 .ticket-stub::before {
   content: '';
@@ -759,6 +762,10 @@ html, body {
 @keyframes pin-drop {
   from { opacity: 0; transform: translateY(-16px) rotate(var(--tilt, -2deg)); }
   to { opacity: 1; transform: translateY(0) rotate(var(--tilt, -2deg)); }
+}
+@keyframes pin-sway {
+  0%, 100% { transform: rotate(calc(var(--tilt, -2deg) - 2.8deg)); }
+  50% { transform: rotate(calc(var(--tilt, -2deg) + 2.8deg)); }
 }
 
 .empty-note { opacity: 0.5; font-size: 0.9rem; }
@@ -1571,6 +1578,13 @@ function randomTilt() {
   return (Math.random() * 6 - 3).toFixed(1) + 'deg';
 }
 
+function applySway(stub) {
+  const duration = (2.6 + Math.random() * 2.2).toFixed(2) + 's'; // 2.6–4.8s per card
+  const delay = (0.4 + Math.random() * 1.4).toFixed(2) + 's';   // starts after entrance, staggered
+  stub.style.setProperty('--sway-dur', duration);
+  stub.style.setProperty('--sway-delay', delay);
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -1593,6 +1607,7 @@ function renderNames(items) {
     const stub = document.createElement('div');
     stub.className = 'ticket-stub';
     stub.style.setProperty('--tilt', randomTilt());
+    applySway(stub);
     stub.innerHTML = `
       <div class="stub-name">${escapeHtml(item.name)}</div>
       <div class="stub-meta">#${String(ticketNumbers.get(item.id)).padStart(3, '0')}</div>
@@ -1613,6 +1628,7 @@ function renderAdvice(items) {
     const stub = document.createElement('div');
     stub.className = 'ticket-stub advice-stub';
     stub.style.setProperty('--tilt', randomTilt());
+    applySway(stub);
     stub.innerHTML = `
       <div>${escapeHtml(item.message)}</div>
       <div class="stub-meta">— ${escapeHtml(item.name || 'Anonymous')}</div>
